@@ -3,7 +3,6 @@ from discord.ext import commands
 import random
 import os
 import asyncio
-import json
 from datetime import datetime, timedelta
 
 # Bot setup
@@ -13,20 +12,11 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# ---- DATA FILES ----
-XP_FILE = "xp_data.json"
-ECO_FILE = "eco_data.json"
-
-def load_json(file):
-    try:
-        with open(file, "r") as f:
-            return json.load(f)
-    except:
-        return {}
-
-def save_json(file, data):
-    with open(file, "w") as f:
-        json.dump(data, f, indent=2)
+# ---- IN-MEMORY STORAGE ----
+xp_data = {}       # {user_id: {"xp": 0, "level": 0, "name": ""}}
+eco_data = {}      # {user_id: {"coins": 0, "last_daily": None, "last_work": None}}
+last_xp_time = {}  # {user_id: datetime}
+trivia_sessions = {}
 
 # ---- STATIC DATA ----
 jokes = [
@@ -54,18 +44,15 @@ facts = [
     "Cats can't taste sweetness 🐱",
     "A group of owls is called a parliament 🦉",
     "Sharks are older than trees 🦈",
-    "A day on Venus is longer than a year on Venus 🪐",
     "Wombat poop is cube-shaped 🟫",
     "Butterflies taste with their feet 🦋",
     "A snail can sleep for 3 years 🐌",
-    "Crows can recognize and remember human faces 🐦",
 ]
 
 quotes = [
     "\"Be yourself; everyone else is already taken.\" — Oscar Wilde ✨",
     "\"The only way to do great work is to love what you do.\" — Steve Jobs 💪",
     "\"You miss 100% of the shots you don't take.\" — Wayne Gretzky 🏒",
-    "\"Why be moody when you can shake yo booty? 💃\" — Unknown Philosopher",
     "\"I am not lazy, I am on energy saving mode. 🔋\" — Wise Person",
     "\"I need a six month holiday, twice a year. 😴\" — Everyone",
     "\"My bed is a magical place where I suddenly remember everything. 🛏️\" — Me",
@@ -79,24 +66,21 @@ memes = [
     "My wallet: empty. My snack game: strong 🍕",
     "POV: You said 'I'm almost ready' 45 minutes ago 😅",
     "That feeling when the WiFi drops for 1 second 📶💀",
-    "Me explaining my problems to my dog 🐶 (he understands)",
     "Friday energy vs Monday energy — Friday wins 1000% 📊",
     "When someone says 'just a quick question' and it's not quick 😐",
     "Nobody: ... Me at 2am: let me reorganize my entire life 🌙",
 ]
 
 trivia_questions = [
-    {"q": "What is the capital of Japan?", "a": "tokyo", "hint": "It starts with T 🇯🇵"},
-    {"q": "How many sides does a hexagon have?", "a": "6", "hint": "It's a single digit number"},
-    {"q": "What is the largest planet in our solar system?", "a": "jupiter", "hint": "It's a gas giant 🪐"},
-    {"q": "What color is the sky on a clear day?", "a": "blue", "hint": "Look up! ☀️"},
+    {"q": "What is the capital of Japan?", "a": "tokyo", "hint": "Starts with T 🇯🇵"},
+    {"q": "How many sides does a hexagon have?", "a": "6", "hint": "Single digit number"},
+    {"q": "What is the largest planet in our solar system?", "a": "jupiter", "hint": "Gas giant 🪐"},
     {"q": "How many legs does a spider have?", "a": "8", "hint": "More than 6 🕷️"},
-    {"q": "What is the fastest land animal?", "a": "cheetah", "hint": "It has spots 🐆"},
+    {"q": "What is the fastest land animal?", "a": "cheetah", "hint": "Has spots 🐆"},
     {"q": "What is 7 x 8?", "a": "56", "hint": "Between 50 and 60"},
-    {"q": "Which planet is closest to the Sun?", "a": "mercury", "hint": "Also a element ☿"},
-    {"q": "What is the largest ocean?", "a": "pacific", "hint": "It surrounds Hawaii 🌊"},
+    {"q": "Which planet is closest to the Sun?", "a": "mercury", "hint": "Also an element ☿"},
+    {"q": "What is the largest ocean?", "a": "pacific", "hint": "Surrounds Hawaii 🌊"},
     {"q": "How many colors are in a rainbow?", "a": "7", "hint": "ROYGBIV 🌈"},
-    {"q": "What animal is known as man's best friend?", "a": "dog", "hint": "Woof woof 🐶"},
     {"q": "What is the chemical symbol for water?", "a": "h2o", "hint": "Two H's and one O 💧"},
 ]
 
@@ -107,7 +91,6 @@ jobs = [
     ("meme maker 😂", 10, 200),
     ("ninja 🥷", 100, 500),
     ("professional napper 😴", 5, 50),
-    ("Discord mod 🔨", 1, 30),
     ("YouTuber 📹", 50, 1000),
     ("chef 👨‍🍳", 80, 250),
     ("wizard 🧙", 200, 800),
@@ -125,8 +108,8 @@ vibes = [
     "Delulu but make it slay 👑",
 ]
 
-weapons = ["🥄 spoon", "🍞 bread", "🧦 sock", "🪣 bucket", "🐟 fish", "🌮 taco", "👡 high heel", "🪠 plunger", "🧅 onion", "🍌 banana"]
-battle_moves = ["slapped", "yeeted", "bonked", "obliterated", "destroyed", "defeated", "annihilated", "roasted"]
+weapons = ["🥄 spoon", "🍞 bread", "🧦 sock", "🐟 fish", "🌮 taco", "👡 high heel", "🧅 onion", "🍌 banana"]
+battle_moves = ["slapped", "yeeted", "bonked", "obliterated", "destroyed", "defeated", "annihilated"]
 
 dad_responses = [
     "My dad is **v4mp**! The coolest person ever! 😎",
@@ -157,7 +140,7 @@ random_events = [
     "Sudden plot twist: {user} was the impostor all along 📮",
     "{user} has entered their villain era 😈",
     "Scientists confirm: {user} is the funniest person here 🧪",
-    "{user} just unlocked a new achievement: Being Awesome 🏆",
+    "{user} just unlocked: Being Awesome 🏆",
 ]
 
 hug_messages = [
@@ -186,48 +169,37 @@ highfive_messages = [
     "✋💥✋ {author} and {target} — that high five echoed! 😂",
 ]
 
-# Active trivia sessions
-trivia_sessions = {}
-
 # ---- XP HELPERS ----
 XP_PER_MSG = 10
-XP_COOLDOWN = 60  # seconds
-last_xp_time = {}
+XP_COOLDOWN = 60
 
 def get_level(xp):
     return int((xp / 100) ** 0.5)
 
-def xp_for_level(level):
-    return (level ** 2) * 100
+def xp_for_next_level(level):
+    return (level + 1) ** 2 * 100
 
-def add_xp(user_id, amount):
-    data = load_json(XP_FILE)
+def get_xp(user_id, name=""):
     uid = str(user_id)
-    if uid not in data:
-        data[uid] = {"xp": 0, "level": 0}
-    old_level = data[uid]["level"]
-    data[uid]["xp"] += amount
-    new_level = get_level(data[uid]["xp"])
-    data[uid]["level"] = new_level
-    save_json(XP_FILE, data)
-    return old_level, new_level
+    if uid not in xp_data:
+        xp_data[uid] = {"xp": 0, "level": 0, "name": name}
+    return xp_data[uid]
+
+def add_xp(user_id, amount, name=""):
+    d = get_xp(user_id, name)
+    old_level = d["level"]
+    d["xp"] += amount
+    d["level"] = get_level(d["xp"])
+    if name:
+        d["name"] = name
+    return old_level, d["level"]
 
 # ---- ECO HELPERS ----
-def get_balance(user_id):
-    data = load_json(ECO_FILE)
+def get_eco(user_id):
     uid = str(user_id)
-    if uid not in data:
-        data[uid] = {"coins": 0, "last_daily": None, "last_work": None}
-        save_json(ECO_FILE, data)
-    return data[uid]
-
-def update_eco(user_id, update):
-    data = load_json(ECO_FILE)
-    uid = str(user_id)
-    if uid not in data:
-        data[uid] = {"coins": 0, "last_daily": None, "last_work": None}
-    data[uid].update(update)
-    save_json(ECO_FILE, data)
+    if uid not in eco_data:
+        eco_data[uid] = {"coins": 0, "last_daily": None, "last_work": None}
+    return eco_data[uid]
 
 # ---- EVENTS ----
 @bot.event
@@ -254,7 +226,6 @@ async def on_member_join(member):
             )
             embed.set_thumbnail(url=member.display_avatar.url)
             embed.add_field(name="📋 Get started", value="Type `!commands` to see what I can do!", inline=False)
-            embed.set_footer(text="v4mp's child bot 🤖")
             await welcome_ch.send(embed=embed)
 
 @bot.event
@@ -271,7 +242,7 @@ async def on_message(message):
         last = last_xp_time.get(uid)
         if not last or (now - last).seconds >= XP_COOLDOWN:
             last_xp_time[uid] = now
-            old_lvl, new_lvl = add_xp(message.author.id, XP_PER_MSG)
+            old_lvl, new_lvl = add_xp(message.author.id, XP_PER_MSG, message.author.display_name)
             if new_lvl > old_lvl:
                 await message.channel.send(
                     f"🎉 {message.author.mention} leveled up to **Level {new_lvl}**! Keep chatting! 🔥"
@@ -282,11 +253,11 @@ async def on_message(message):
         session = trivia_sessions[message.channel.id]
         if content == session["answer"]:
             del trivia_sessions[message.channel.id]
-            add_xp(message.author.id, 50)
-            eco = get_balance(message.author.id)
-            update_eco(message.author.id, {"coins": eco["coins"] + 100})
+            add_xp(message.author.id, 50, message.author.display_name)
+            eco = get_eco(message.author.id)
+            eco["coins"] += 100
             await message.channel.send(
-                f"🎉 {message.author.mention} got it right! The answer was **{session['answer']}**!\n+50 XP & +100 coins! 💰"
+                f"🎉 {message.author.mention} got it right! Answer: **{session['answer']}**!\n+50 XP & +100 coins! 💰"
             )
             return
 
@@ -304,7 +275,6 @@ async def on_message(message):
             f"Good morning {message.author.mention}! Rise and grind! ☀️",
             f"Morning {message.author.mention}! Don't forget to touch grass today 🌿",
             f"Good morning {message.author.mention}! Today is gonna be your day! 🌟",
-            f"Wakey wakey {message.author.mention}! ☀️ The world needs your energy!",
         ]
         await message.channel.send(random.choice(greetings))
         return
@@ -314,7 +284,6 @@ async def on_message(message):
             f"Good night {message.author.mention}! Don't let the bed bugs bite 🌙",
             f"Night night {message.author.mention}! Sweet dreams 💤",
             f"Sleep well {message.author.mention}! See you tomorrow ⭐",
-            f"Bye bye {message.author.mention}! Go touch your pillow 🛏️",
         ]
         await message.channel.send(random.choice(nights))
         return
@@ -341,8 +310,7 @@ async def on_message(message):
         return
 
     if content in ["no way", "no way!", "no way!!"]:
-        replies = ["WAY 😤", "Yes way! 💀", "Believe it! 🔥"]
-        await message.channel.send(random.choice(replies))
+        await message.channel.send(random.choice(["WAY 😤", "Yes way! 💀", "Believe it! 🔥"]))
         return
 
     if "i'm bored" in content or "im bored" in content:
@@ -418,78 +386,72 @@ async def trivia(ctx):
     q = random.choice(trivia_questions)
     trivia_sessions[ctx.channel.id] = {"answer": q["a"], "hint": q["hint"]}
     embed = discord.Embed(title="🧠 Trivia Time!", description=q["q"], color=discord.Color.gold())
-    embed.set_footer(text="Type your answer! Hint available with !hint | Correct = +50 XP +100 coins!")
+    embed.set_footer(text="Type your answer! | !hint for a clue | Correct = +50 XP +100 coins!")
     await ctx.send(embed=embed)
     await asyncio.sleep(30)
     if ctx.channel.id in trivia_sessions:
         del trivia_sessions[ctx.channel.id]
-        await ctx.send(f"⏰ Time's up! The answer was **{q['a']}**! Better luck next time!")
+        await ctx.send(f"⏰ Time's up! The answer was **{q['a']}**!")
 
 @bot.command(name="hint")
 async def hint(ctx):
     if ctx.channel.id in trivia_sessions:
         await ctx.send(f"💡 Hint: {trivia_sessions[ctx.channel.id]['hint']}")
     else:
-        await ctx.send("No active trivia question! Use `!trivia` to start one.")
+        await ctx.send("No active trivia! Use `!trivia` to start one.")
 
 # ---- SOCIAL COMMANDS ----
 @bot.command(name="hug")
 async def hug(ctx, member: discord.Member = None):
     if not member or member == ctx.author:
-        await ctx.send("❌ Tag someone else to hug! Example: `!hug @user`")
+        await ctx.send("❌ Tag someone else! Example: `!hug @user`")
         return
-    msg = random.choice(hug_messages).format(author=ctx.author.mention, target=member.mention)
-    await ctx.send(msg)
+    await ctx.send(random.choice(hug_messages).format(author=ctx.author.mention, target=member.mention))
 
 @bot.command(name="kiss")
 async def kiss(ctx, member: discord.Member = None):
     if not member or member == ctx.author:
-        await ctx.send("❌ Tag someone else to kiss! Example: `!kiss @user`")
+        await ctx.send("❌ Tag someone else! Example: `!kiss @user`")
         return
-    msg = random.choice(kiss_messages).format(author=ctx.author.mention, target=member.mention)
-    await ctx.send(msg)
+    await ctx.send(random.choice(kiss_messages).format(author=ctx.author.mention, target=member.mention))
 
 @bot.command(name="slap")
 async def slap(ctx, member: discord.Member = None):
     if not member or member == ctx.author:
-        await ctx.send("❌ Tag someone else to slap! Example: `!slap @user`")
+        await ctx.send("❌ Tag someone else! Example: `!slap @user`")
         return
-    msg = random.choice(slap_messages).format(author=ctx.author.mention, target=member.mention)
-    await ctx.send(msg)
+    await ctx.send(random.choice(slap_messages).format(author=ctx.author.mention, target=member.mention))
 
 @bot.command(name="cuddle")
 async def cuddle(ctx, member: discord.Member = None):
     if not member or member == ctx.author:
-        await ctx.send("❌ Tag someone else to cuddle! Example: `!cuddle @user`")
+        await ctx.send("❌ Tag someone else! Example: `!cuddle @user`")
         return
-    msg = random.choice(cuddle_messages).format(author=ctx.author.mention, target=member.mention)
-    await ctx.send(msg)
+    await ctx.send(random.choice(cuddle_messages).format(author=ctx.author.mention, target=member.mention))
 
 @bot.command(name="highfive")
 async def highfive(ctx, member: discord.Member = None):
     if not member or member == ctx.author:
         await ctx.send("❌ Tag someone else! Example: `!highfive @user`")
         return
-    msg = random.choice(highfive_messages).format(author=ctx.author.mention, target=member.mention)
-    await ctx.send(msg)
+    await ctx.send(random.choice(highfive_messages).format(author=ctx.author.mention, target=member.mention))
 
 @bot.command(name="roast")
 async def roast(ctx, member: discord.Member = None):
     if not member or member == ctx.author:
-        await ctx.send("❌ Tag someone else to roast! Example: `!roast @user`")
+        await ctx.send("❌ Tag someone else! Example: `!roast @user`")
         return
     await ctx.send(f"{member.mention} {random.choice(roasts)}")
 
 # ---- MINI GAMES ----
 @bot.command(name="coinflip")
 async def coinflip(ctx):
-    result = random.choice(["Heads 🪙", "Tails 🪙"])
-    await ctx.send(f"🪙 Flipping... **{result}**!")
+    await ctx.send(f"🪙 Flipping... **{random.choice(['Heads 🪙', 'Tails 🪙'])}**!")
 
 @bot.command(name="dice")
 async def dice(ctx):
     result = random.randint(1, 6)
-    faces = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"]
+    faces = ["⚀","⚁","⚂","⚃","⚄","⚅"]
     await ctx.send(f"🎲 You rolled: {faces[result-1]} **{result}**!")
 
 @bot.command(name="rps")
@@ -503,9 +465,38 @@ async def rps(ctx, choice: str = None):
     bot_choice = random.choice(options)
     if player == bot_choice:
         result = "It's a tie! 🤝"
-    elif (player == "rock" and bot_choice == "scissors") or \
-         (player == "paper" and bot_choice == "rock") or \
-         (player == "scissors" and bot_choice == "paper"):
+    elif (player=="rock" and bot_choice=="scissors") or \
+         (player=="paper" and bot_choice=="rock") or \
+         (player=="scissors" and bot_choice=="paper"):
         result = "You win! 🎉"
     else:
-        r
+        result = "I win! 😈"
+    await ctx.send(f"You: {emojis[player]} vs Me: {emojis[bot_choice]}\n**{result}**")
+
+@bot.command(name="battle")
+async def battle(ctx, member: discord.Member = None):
+    if not member or member == ctx.author:
+        await ctx.send("❌ Tag someone else! Example: `!battle @user`")
+        return
+    winner = random.choice([ctx.author, member])
+    loser = member if winner == ctx.author else ctx.author
+    await ctx.send(f"⚔️ **BATTLE!**\n{ctx.author.mention} vs {member.mention}\n\n🏆 **{winner.mention}** {random.choice(battle_moves)} {loser.mention} with a {random.choice(weapons)}!")
+
+# ---- XP COMMANDS ----
+@bot.command(name="level")
+async def level(ctx, member: discord.Member = None):
+    target = member or ctx.author
+    d = get_xp(target.id, target.display_name)
+    next_xp = xp_for_next_level(d["level"])
+    embed = discord.Embed(title=f"⭐ {target.display_name}'s Level", color=discord.Color.gold())
+    embed.add_field(name="Level", value=f"**{d['level']}**", inline=True)
+    embed.add_field(name="XP", value=f"**{d['xp']}** / {next_xp}", inline=True)
+    embed.set_thumbnail(url=target.display_avatar.url)
+    await ctx.send(embed=embed)
+
+@bot.command(name="leaderboard")
+async def leaderboard(ctx):
+    if not xp_data:
+        await ctx.send("No XP data yet! Start chatting! 💬")
+        return
+    sorted_data = sorted(xp_da
