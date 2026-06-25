@@ -3,15 +3,32 @@ from discord.ext import commands
 import random
 import os
 import asyncio
+import json
+from datetime import datetime, timedelta
 
 # Bot setup
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# ---- DATA ----
+# ---- DATA FILES ----
+XP_FILE = "xp_data.json"
+ECO_FILE = "eco_data.json"
 
+def load_json(file):
+    try:
+        with open(file, "r") as f:
+            return json.load(f)
+    except:
+        return {}
+
+def save_json(file, data):
+    with open(file, "w") as f:
+        json.dump(data, f, indent=2)
+
+# ---- STATIC DATA ----
 jokes = [
     ("Why don't scientists trust atoms?", "Because they make up everything! 😂"),
     ("Why did the scarecrow win an award?", "Because he was outstanding in his field! 🌾"),
@@ -27,7 +44,6 @@ jokes = [
     ("What do you call a sleeping dinosaur?", "A dino-snore! 🦕"),
     ("Why did the computer go to the doctor?", "Because it had a virus! 💻"),
     ("What do you call a bear with no teeth?", "A gummy bear! 🐻"),
-    ("Why can't Elsa have a balloon?", "She'll let it go! ❄️"),
 ]
 
 facts = [
@@ -39,19 +55,15 @@ facts = [
     "A group of owls is called a parliament 🦉",
     "Sharks are older than trees 🦈",
     "A day on Venus is longer than a year on Venus 🪐",
-    "Cleopatra lived closer to the Moon landing than to the pyramids 🏛️",
-    "The average person walks past 36 murderers in their lifetime 😨",
-    "Crows can recognize and remember human faces 🐦",
     "Wombat poop is cube-shaped 🟫",
     "Butterflies taste with their feet 🦋",
     "A snail can sleep for 3 years 🐌",
+    "Crows can recognize and remember human faces 🐦",
 ]
 
 quotes = [
     "\"Be yourself; everyone else is already taken.\" — Oscar Wilde ✨",
     "\"The only way to do great work is to love what you do.\" — Steve Jobs 💪",
-    "\"In the middle of every difficulty lies opportunity.\" — Einstein 🧠",
-    "\"Life is what happens when you're busy making other plans.\" — John Lennon 🎵",
     "\"You miss 100% of the shots you don't take.\" — Wayne Gretzky 🏒",
     "\"Why be moody when you can shake yo booty? 💃\" — Unknown Philosopher",
     "\"I am not lazy, I am on energy saving mode. 🔋\" — Wise Person",
@@ -68,20 +80,37 @@ memes = [
     "POV: You said 'I'm almost ready' 45 minutes ago 😅",
     "That feeling when the WiFi drops for 1 second 📶💀",
     "Me explaining my problems to my dog 🐶 (he understands)",
-    "Friday energy vs Monday energy 📊 (Friday wins 1000%)",
+    "Friday energy vs Monday energy — Friday wins 1000% 📊",
     "When someone says 'just a quick question' and it's not quick 😐",
     "Nobody: ... Me at 2am: let me reorganize my entire life 🌙",
 ]
 
-rizz_lines = [
-    "Your smile could crash Discord servers 😍",
-    "Are you a magician? Because whenever I look at you, everyone else disappears ✨",
-    "Do you have a map? I keep getting lost in your eyes 🗺️",
-    "Are you WiFi? Because I'm feeling a connection 📶",
-    "You must be a keyboard, because you're just my type 💻",
-    "Is your name Google? Because you have everything I've been searching for 🔍",
-    "Are you a camera? Every time I see you, I smile 📸",
-    "You're so sweet, you'd put Willy Wonka out of business 🍫",
+trivia_questions = [
+    {"q": "What is the capital of Japan?", "a": "tokyo", "hint": "It starts with T 🇯🇵"},
+    {"q": "How many sides does a hexagon have?", "a": "6", "hint": "It's a single digit number"},
+    {"q": "What is the largest planet in our solar system?", "a": "jupiter", "hint": "It's a gas giant 🪐"},
+    {"q": "What color is the sky on a clear day?", "a": "blue", "hint": "Look up! ☀️"},
+    {"q": "How many legs does a spider have?", "a": "8", "hint": "More than 6 🕷️"},
+    {"q": "What is the fastest land animal?", "a": "cheetah", "hint": "It has spots 🐆"},
+    {"q": "What is 7 x 8?", "a": "56", "hint": "Between 50 and 60"},
+    {"q": "Which planet is closest to the Sun?", "a": "mercury", "hint": "Also a element ☿"},
+    {"q": "What is the largest ocean?", "a": "pacific", "hint": "It surrounds Hawaii 🌊"},
+    {"q": "How many colors are in a rainbow?", "a": "7", "hint": "ROYGBIV 🌈"},
+    {"q": "What animal is known as man's best friend?", "a": "dog", "hint": "Woof woof 🐶"},
+    {"q": "What is the chemical symbol for water?", "a": "h2o", "hint": "Two H's and one O 💧"},
+]
+
+jobs = [
+    ("pizza delivery 🍕", 50, 150),
+    ("streamer 🎮", 20, 300),
+    ("dog walker 🐕", 30, 100),
+    ("meme maker 😂", 10, 200),
+    ("ninja 🥷", 100, 500),
+    ("professional napper 😴", 5, 50),
+    ("Discord mod 🔨", 1, 30),
+    ("YouTuber 📹", 50, 1000),
+    ("chef 👨‍🍳", 80, 250),
+    ("wizard 🧙", 200, 800),
 ]
 
 vibes = [
@@ -89,7 +118,6 @@ vibes = [
     "Main character energy today 🌟",
     "Unhinged but in a fun way 😈",
     "Cozy and unbothered 🧸",
-    "That 'I woke up like this' energy ✨",
     "Villain arc loading... 💀",
     "NPC behavior detected 🤖",
     "Certified sigma grindset mode 💪",
@@ -120,14 +148,12 @@ roasts = [
     "If you were any more basic, you'd be a WiFi password. 😏",
     "You're the human equivalent of a participation trophy. 🏆",
     "I've seen better comebacks in a boomerang. 🪃",
-    "You're not stupid, you just have bad luck thinking. 🧠",
 ]
 
 random_events = [
     "{user} just tripped over nothing 😂",
     "Server energy +10 🔥 thanks to {user}!",
     "Breaking news: {user} is built different 💪",
-    "{user} just said something and the whole server felt it 👀",
     "Sudden plot twist: {user} was the impostor all along 📮",
     "{user} has entered their villain era 😈",
     "Scientists confirm: {user} is the funniest person here 🧪",
@@ -139,30 +165,69 @@ hug_messages = [
     "🤗 {author} squeezes {target} so tight! 💕",
     "🤗 {author} runs and hugs {target}! Awww! 🥺",
 ]
-
 kiss_messages = [
     "😘 {author} blows {target} a kiss! 💋",
     "😚 {author} gives {target} a little peck! How cute! 💕",
     "💋 {author} → {target} 😳 ooooh!",
 ]
-
 slap_messages = [
     "👋 {author} slaps {target} with a 🐟 fish!",
     "💥 {author} slaps {target} into next week!",
     "😤 {author} gives {target} the ultimate slap! SMACK! 👋",
 ]
-
 cuddle_messages = [
     "🥰 {author} cuddles up with {target}! So wholesome! ☁️",
     "💕 {author} and {target} are cuddling! Don't disturb them! 🤫",
     "🛋️ {author} wraps {target} in a cozy blanket cuddle! 🥺",
 ]
-
 highfive_messages = [
     "✋ {author} and {target} high five! SLAP! Nice! 🎉",
     "🙌 {author} gives {target} the most epic high five!",
     "✋💥✋ {author} and {target} — that high five echoed! 😂",
 ]
+
+# Active trivia sessions
+trivia_sessions = {}
+
+# ---- XP HELPERS ----
+XP_PER_MSG = 10
+XP_COOLDOWN = 60  # seconds
+last_xp_time = {}
+
+def get_level(xp):
+    return int((xp / 100) ** 0.5)
+
+def xp_for_level(level):
+    return (level ** 2) * 100
+
+def add_xp(user_id, amount):
+    data = load_json(XP_FILE)
+    uid = str(user_id)
+    if uid not in data:
+        data[uid] = {"xp": 0, "level": 0}
+    old_level = data[uid]["level"]
+    data[uid]["xp"] += amount
+    new_level = get_level(data[uid]["xp"])
+    data[uid]["level"] = new_level
+    save_json(XP_FILE, data)
+    return old_level, new_level
+
+# ---- ECO HELPERS ----
+def get_balance(user_id):
+    data = load_json(ECO_FILE)
+    uid = str(user_id)
+    if uid not in data:
+        data[uid] = {"coins": 0, "last_daily": None, "last_work": None}
+        save_json(ECO_FILE, data)
+    return data[uid]
+
+def update_eco(user_id, update):
+    data = load_json(ECO_FILE)
+    uid = str(user_id)
+    if uid not in data:
+        data[uid] = {"coins": 0, "last_daily": None, "last_work": None}
+    data[uid].update(update)
+    save_json(ECO_FILE, data)
 
 # ---- EVENTS ----
 @bot.event
@@ -175,23 +240,65 @@ async def on_ready():
     bot.loop.create_task(random_event_task())
 
 @bot.event
+async def on_member_join(member):
+    for guild in bot.guilds:
+        welcome_ch = discord.utils.find(
+            lambda c: c.name in ["welcome", "general", "chat"],
+            guild.text_channels
+        )
+        if welcome_ch:
+            embed = discord.Embed(
+                title=f"🎉 Welcome to {guild.name}!",
+                description=f"Hey {member.mention}! We're glad you're here! 🥳\nYou are member **#{guild.member_count}**!",
+                color=discord.Color.green()
+            )
+            embed.set_thumbnail(url=member.display_avatar.url)
+            embed.add_field(name="📋 Get started", value="Type `!commands` to see what I can do!", inline=False)
+            embed.set_footer(text="v4mp's child bot 🤖")
+            await welcome_ch.send(embed=embed)
+
+@bot.event
 async def on_message(message):
     if message.author == bot.user:
         return
 
     content = message.content.lower().strip()
 
-    # Who's your dad
+    # XP System
+    if not message.author.bot and not content.startswith("!"):
+        uid = str(message.author.id)
+        now = datetime.now()
+        last = last_xp_time.get(uid)
+        if not last or (now - last).seconds >= XP_COOLDOWN:
+            last_xp_time[uid] = now
+            old_lvl, new_lvl = add_xp(message.author.id, XP_PER_MSG)
+            if new_lvl > old_lvl:
+                await message.channel.send(
+                    f"🎉 {message.author.mention} leveled up to **Level {new_lvl}**! Keep chatting! 🔥"
+                )
+
+    # Trivia answer check
+    if message.channel.id in trivia_sessions:
+        session = trivia_sessions[message.channel.id]
+        if content == session["answer"]:
+            del trivia_sessions[message.channel.id]
+            add_xp(message.author.id, 50)
+            eco = get_balance(message.author.id)
+            update_eco(message.author.id, {"coins": eco["coins"] + 100})
+            await message.channel.send(
+                f"🎉 {message.author.mention} got it right! The answer was **{session['answer']}**!\n+50 XP & +100 coins! 💰"
+            )
+            return
+
+    # Auto replies
     if any(x in content for x in ["who's your dad", "whos your dad", "who is your dad", "who is ur dad"]):
         await message.channel.send(random.choice(dad_responses))
         return
 
-    # Greetings
     if content in ["hello", "hi", "hey", "hello!", "hi!", "hey!"]:
         await message.channel.send(f"Hey {message.author.mention}! I'm **v4mp's child** 👋 Type `!commands` to see what I can do!")
         return
 
-    # Good morning
     if "good morning" in content or content == "gm":
         greetings = [
             f"Good morning {message.author.mention}! Rise and grind! ☀️",
@@ -202,7 +309,6 @@ async def on_message(message):
         await message.channel.send(random.choice(greetings))
         return
 
-    # Good night
     if "good night" in content or content in ["gn", "gn!", "goodnight"]:
         nights = [
             f"Good night {message.author.mention}! Don't let the bed bugs bite 🌙",
@@ -213,40 +319,48 @@ async def on_message(message):
         await message.channel.send(random.choice(nights))
         return
 
-    # F in chat
     if content == "f":
         await message.channel.send("F in the chat 🫡")
         return
 
-    # GG
     if content in ["gg", "gg!", "ggs"]:
         await message.channel.send("GG EZ 🎮")
         return
 
-    # LOL
     if content in ["lol", "lmao", "lmfao", "haha", "hahaha"]:
         replies = ["😂😂😂", "LMAOOO 💀", "bro really typed that 😭", "I'm dead 💀💀", "fr fr 😂"]
         await message.channel.send(random.choice(replies))
         return
 
-    # BRB
     if content in ["brb", "brb!"]:
         await message.channel.send(f"See you soon {message.author.mention}! 👋")
         return
 
-    # v4mp mentioned
+    if content in ["same", "same.", "same lol"]:
+        await message.channel.send("SAME BRO 😭")
+        return
+
+    if content in ["no way", "no way!", "no way!!"]:
+        replies = ["WAY 😤", "Yes way! 💀", "Believe it! 🔥"]
+        await message.channel.send(random.choice(replies))
+        return
+
+    if "i'm bored" in content or "im bored" in content:
+        await message.channel.send(f"{message.author.mention} Try `!trivia` or `!rps` or `!joke`! 🎮")
+        return
+
     if "v4mp" in content and message.author.name.lower() != "v4mp":
-        if random.random() < 0.5:
+        if random.random() < 0.4:
             await message.channel.send(random.choice(v4mp_compliments))
             return
 
     await bot.process_commands(message)
 
-# ---- RANDOM EVENT TASK ----
+# ---- RANDOM EVENTS ----
 async def random_event_task():
     await bot.wait_until_ready()
     while not bot.is_closed():
-        await asyncio.sleep(random.randint(1800, 5400))  # every 30-90 mins
+        await asyncio.sleep(random.randint(1800, 5400))
         for guild in bot.guilds:
             general = discord.utils.find(
                 lambda c: c.name in ["general", "chat", "lounge", "main"],
@@ -292,52 +406,82 @@ async def eightball(ctx, *, question: str):
     embed.add_field(name="Answer", value=random.choice(responses), inline=False)
     await ctx.send(embed=embed)
 
+# ---- TRIVIA ----
+@bot.command(name="trivia")
+async def trivia(ctx):
+    if ctx.channel.id in trivia_sessions:
+        await ctx.send("⚠️ There's already a trivia question active! Answer it first!")
+        return
+    q = random.choice(trivia_questions)
+    trivia_sessions[ctx.channel.id] = {"answer": q["a"], "hint": q["hint"]}
+    embed = discord.Embed(title="🧠 Trivia Time!", description=q["q"], color=discord.Color.gold())
+    embed.set_footer(text="Type your answer! Hint available with !hint | Correct = +50 XP +100 coins!")
+    await ctx.send(embed=embed)
+    await asyncio.sleep(30)
+    if ctx.channel.id in trivia_sessions:
+        del trivia_sessions[ctx.channel.id]
+        await ctx.send(f"⏰ Time's up! The answer was **{q['a']}**! Better luck next time!")
+
+@bot.command(name="hint")
+async def hint(ctx):
+    if ctx.channel.id in trivia_sessions:
+        await ctx.send(f"💡 Hint: {trivia_sessions[ctx.channel.id]['hint']}")
+    else:
+        await ctx.send("No active trivia question! Use `!trivia` to start one.")
+
 # ---- SOCIAL COMMANDS ----
 @bot.command(name="hug")
 async def hug(ctx, member: discord.Member = None):
-    target = member or ctx.author
-    msg = random.choice(hug_messages).format(author=ctx.author.mention, target=target.mention)
+    if not member:
+        await ctx.send("❌ Tag someone to hug! Example: `!hug @user`")
+        return
+    msg = random.choice(hug_messages).format(author=ctx.author.mention, target=member.mention)
     await ctx.send(msg)
 
 @bot.command(name="kiss")
 async def kiss(ctx, member: discord.Member = None):
-    target = member or ctx.author
-    msg = random.choice(kiss_messages).format(author=ctx.author.mention, target=target.mention)
+    if not member:
+        await ctx.send("❌ Tag someone to kiss! Example: `!kiss @user`")
+        return
+    msg = random.choice(kiss_messages).format(author=ctx.author.mention, target=member.mention)
     await ctx.send(msg)
 
 @bot.command(name="slap")
 async def slap(ctx, member: discord.Member = None):
-    target = member or ctx.author
-    msg = random.choice(slap_messages).format(author=ctx.author.mention, target=target.mention)
+    if not member:
+        await ctx.send("❌ Tag someone to slap! Example: `!slap @user`")
+        return
+    msg = random.choice(slap_messages).format(author=ctx.author.mention, target=member.mention)
     await ctx.send(msg)
 
 @bot.command(name="cuddle")
 async def cuddle(ctx, member: discord.Member = None):
-    target = member or ctx.author
-    msg = random.choice(cuddle_messages).format(author=ctx.author.mention, target=target.mention)
+    if not member:
+        await ctx.send("❌ Tag someone to cuddle! Example: `!cuddle @user`")
+        return
+    msg = random.choice(cuddle_messages).format(author=ctx.author.mention, target=member.mention)
     await ctx.send(msg)
 
 @bot.command(name="highfive")
 async def highfive(ctx, member: discord.Member = None):
-    target = member or ctx.author
-    msg = random.choice(highfive_messages).format(author=ctx.author.mention, target=target.mention)
+    if not member:
+        await ctx.send("❌ Tag someone! Example: `!highfive @user`")
+        return
+    msg = random.choice(highfive_messages).format(author=ctx.author.mention, target=member.mention)
     await ctx.send(msg)
 
 @bot.command(name="roast")
 async def roast(ctx, member: discord.Member = None):
-    target = member or ctx.author
-    await ctx.send(f"{target.mention} {random.choice(roasts)}")
-
-@bot.command(name="rizz")
-async def rizz(ctx, member: discord.Member = None):
-    target = member or ctx.author
-    await ctx.send(f"💘 {ctx.author.mention} → {target.mention}: *{random.choice(rizz_lines)}*")
+    if not member:
+        await ctx.send("❌ Tag someone to roast! Example: `!roast @user`")
+        return
+    await ctx.send(f"{member.mention} {random.choice(roasts)}")
 
 # ---- MINI GAMES ----
 @bot.command(name="coinflip")
 async def coinflip(ctx):
     result = random.choice(["Heads 🪙", "Tails 🪙"])
-    await ctx.send(f"🪙 Flipping coin... **{result}**!")
+    await ctx.send(f"🪙 Flipping... **{result}**!")
 
 @bot.command(name="dice")
 async def dice(ctx):
@@ -364,89 +508,9 @@ async def rps(ctx, choice: str = None):
         result = "I win! 😈"
     await ctx.send(f"You: {emojis[player]} vs Me: {emojis[bot_choice]}\n**{result}**")
 
-# ---- OTHER COMMANDS ----
-@bot.command(name="vibe")
-async def vibe(ctx, member: discord.Member = None):
+# ---- XP / LEVELING ----
+@bot.command(name="rank")
+async def rank(ctx, member: discord.Member = None):
     target = member or ctx.author
-    await ctx.send(f"✨ {target.mention}'s vibe today: **{random.choice(vibes)}**")
-
-@bot.command(name="rate")
-async def rate(ctx, member: discord.Member = None):
-    target = member or ctx.author
-    score = round(random.uniform(1, 10), 1)
-    if score >= 9:
-        label = "LEGENDARY! 👑"
-    elif score >= 7:
-        label = "Pretty awesome! 🔥"
-    elif score >= 4:
-        label = "Not bad! 👍"
-    else:
-        label = "Needs improvement 😬"
-    await ctx.send(f"⭐ I rate {target.mention} **{score}/10** — {label}")
-
-@bot.command(name="ship")
-async def ship(ctx, member1: discord.Member, member2: discord.Member = None):
-    target2 = member2 or ctx.author
-    score = random.randint(1, 100)
-    if score >= 80:
-        verdict = "Perfect match! Get married already! 💍"
-    elif score >= 60:
-        verdict = "Pretty good chemistry! 💕"
-    elif score >= 40:
-        verdict = "Could work with some effort 🤔"
-    else:
-        verdict = "Yikes... maybe just stay friends 😅"
-    embed = discord.Embed(title="💘 Ship Calculator", color=discord.Color.pink())
-    embed.add_field(name="Couple", value=f"{member1.mention} + {target2.mention}", inline=False)
-    embed.add_field(name="Compatibility", value=f"**{score}%** — {verdict}", inline=False)
-    await ctx.send(embed=embed)
-
-@bot.command(name="battle")
-async def battle(ctx, member: discord.Member):
-    if member == ctx.author:
-        await ctx.send("You can't battle yourself... or can you? 🤔")
-        return
-    winner = random.choice([ctx.author, member])
-    loser = member if winner == ctx.author else ctx.author
-    weapon = random.choice(weapons)
-    move = random.choice(battle_moves)
-    await ctx.send(f"⚔️ **BATTLE!**\n{ctx.author.mention} vs {member.mention}\n\n🏆 **{winner.mention}** {move} {loser.mention} with a {weapon}!")
-
-@bot.command(name="dad")
-async def dad(ctx):
-    await ctx.send(random.choice(dad_responses))
-
-@bot.command(name="hello")
-async def hello(ctx):
-    await ctx.send(f"Hello {ctx.author.mention}! I'm **v4mp's child** 🤖✨")
-
-@bot.command(name="about")
-async def about(ctx):
-    embed = discord.Embed(
-        title="About Me 🤖",
-        description="I am **v4mp's child** — made by the legendary **v4mp**!",
-        color=discord.Color.purple()
-    )
-    embed.add_field(name="👨 Dad", value="v4mp", inline=True)
-    embed.add_field(name="🎂 Purpose", value="To make this server fun!", inline=True)
-    embed.set_footer(text="Made with ❤️ by v4mp")
-    await ctx.send(embed=embed)
-
-@bot.command(name="commands")
-async def commands_list(ctx):
-    embed = discord.Embed(title="📋 v4mp's child — All Commands", color=discord.Color.purple())
-    embed.add_field(name="🎉 Fun", value="`!joke` `!fact` `!quote` `!meme` `!8ball <q>`", inline=False)
-    embed.add_field(name="💖 Social", value="`!hug` `!kiss` `!slap` `!cuddle` `!highfive` `!roast` `!rizz`", inline=False)
-    embed.add_field(name="🎮 Games", value="`!coinflip` `!dice` `!rps rock/paper/scissors`", inline=False)
-    embed.add_field(name="⭐ Other", value="`!rate` `!ship` `!vibe` `!battle` `!dad` `!about`", inline=False)
-    embed.add_field(name="💬 Auto-Reply", value="gm • gn • f • gg • lol • brb • who's your dad • hi/hello/hey", inline=False)
-    embed.set_footer(text="Random events happen automatically every 30-90 mins! 🎲")
-    await ctx.send(embed=embed)
-
-# ---- RUN ----
-token = os.environ.get("DISCORD_TOKEN")
-if not token:
-    print("❌ ERROR: DISCORD_TOKEN environment variable not set!")
-    exit(1)
-
-bot.run(token)
+    data = load_json(XP_FILE)
+    uid = str(target.
