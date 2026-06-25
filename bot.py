@@ -394,7 +394,10 @@ async def meme(ctx):
     await ctx.send(f"😂 **Meme of the moment:**\n> {random.choice(memes)}")
 
 @bot.command(name="8ball")
-async def eightball(ctx, *, question: str):
+async def eightball(ctx, *, question: str = None):
+    if not question:
+        await ctx.send("❌ Ask a question! Example: `!8ball Will I win today?`")
+        return
     responses = [
         "It is certain! ✅", "Definitely yes! ✅", "Without a doubt! ✅",
         "Yes, absolutely! ✅", "Most likely yes! ✅",
@@ -432,48 +435,48 @@ async def hint(ctx):
 # ---- SOCIAL COMMANDS ----
 @bot.command(name="hug")
 async def hug(ctx, member: discord.Member = None):
-    if not member:
-        await ctx.send("❌ Tag someone to hug! Example: `!hug @user`")
+    if not member or member == ctx.author:
+        await ctx.send("❌ Tag someone else to hug! Example: `!hug @user`")
         return
     msg = random.choice(hug_messages).format(author=ctx.author.mention, target=member.mention)
     await ctx.send(msg)
 
 @bot.command(name="kiss")
 async def kiss(ctx, member: discord.Member = None):
-    if not member:
-        await ctx.send("❌ Tag someone to kiss! Example: `!kiss @user`")
+    if not member or member == ctx.author:
+        await ctx.send("❌ Tag someone else to kiss! Example: `!kiss @user`")
         return
     msg = random.choice(kiss_messages).format(author=ctx.author.mention, target=member.mention)
     await ctx.send(msg)
 
 @bot.command(name="slap")
 async def slap(ctx, member: discord.Member = None):
-    if not member:
-        await ctx.send("❌ Tag someone to slap! Example: `!slap @user`")
+    if not member or member == ctx.author:
+        await ctx.send("❌ Tag someone else to slap! Example: `!slap @user`")
         return
     msg = random.choice(slap_messages).format(author=ctx.author.mention, target=member.mention)
     await ctx.send(msg)
 
 @bot.command(name="cuddle")
 async def cuddle(ctx, member: discord.Member = None):
-    if not member:
-        await ctx.send("❌ Tag someone to cuddle! Example: `!cuddle @user`")
+    if not member or member == ctx.author:
+        await ctx.send("❌ Tag someone else to cuddle! Example: `!cuddle @user`")
         return
     msg = random.choice(cuddle_messages).format(author=ctx.author.mention, target=member.mention)
     await ctx.send(msg)
 
 @bot.command(name="highfive")
 async def highfive(ctx, member: discord.Member = None):
-    if not member:
-        await ctx.send("❌ Tag someone! Example: `!highfive @user`")
+    if not member or member == ctx.author:
+        await ctx.send("❌ Tag someone else! Example: `!highfive @user`")
         return
     msg = random.choice(highfive_messages).format(author=ctx.author.mention, target=member.mention)
     await ctx.send(msg)
 
 @bot.command(name="roast")
 async def roast(ctx, member: discord.Member = None):
-    if not member:
-        await ctx.send("❌ Tag someone to roast! Example: `!roast @user`")
+    if not member or member == ctx.author:
+        await ctx.send("❌ Tag someone else to roast! Example: `!roast @user`")
         return
     await ctx.send(f"{member.mention} {random.choice(roasts)}")
 
@@ -505,12 +508,4 @@ async def rps(ctx, choice: str = None):
          (player == "scissors" and bot_choice == "paper"):
         result = "You win! 🎉"
     else:
-        result = "I win! 😈"
-    await ctx.send(f"You: {emojis[player]} vs Me: {emojis[bot_choice]}\n**{result}**")
-
-# ---- XP / LEVELING ----
-@bot.command(name="rank")
-async def rank(ctx, member: discord.Member = None):
-    target = member or ctx.author
-    data = load_json(XP_FILE)
-    uid = str(target.
+        r
